@@ -27,6 +27,20 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def wait_until_file_is_ready(file_path, checks=3, delay=1):
+    previous_size = -1
+    stable_checks = 0
+
+    while stable_checks < checks:
+        current_size = os.path.getsize(file_path)
+        if current_size == previous_size:
+            stable_checks += 1
+        else:
+            stable_checks = 0
+            previous_size = current_size
+        time.sleep(delay)
+
+
 class ProcessingService:
     def __init__(self):
         logger.info('Initializing ProcessingService...')
@@ -38,6 +52,7 @@ class ProcessingService:
     def process_single_file(self, file_path):
         try:
             logger.info('Processing file: %s', file_path)
+            wait_until_file_is_ready(file_path)
             input_df = load_input_file(file_path)
 
             logger.info('Starting preprocessing')
