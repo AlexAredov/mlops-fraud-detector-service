@@ -4,3 +4,6 @@
 .github/
 __pycache__/
 *.pyc
+input/
+output/
+train_data/
