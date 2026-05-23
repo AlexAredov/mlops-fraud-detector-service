@@ -17,6 +17,7 @@ DISCLAIMER
 ├── models/
 │ └── my_catboost.cbm # Сериализованная модель CatBoost
 ├── src/
+│ ├── io_utils.py # Загрузка входных файлов и сохранение результатов
 │ ├── preprocessing.py # Пайплайн обработки данных
 │ └── scorer.py # Модуль прогнозирования
 └── train_data/
@@ -56,6 +57,13 @@ DISCLAIMER
 - Порог классификации: 0.98
 - Автоматическая загрузка модели при инициализации
 - Батчевая обработка через `predict_proba`
+- Выгрузка top-5 feature importances модели
+
+### Результаты скоринга
+Для каждого загруженного CSV-файла сервис сохраняет в `./output`:
+- `sample_submission_<timestamp>_<input_file>.csv` - предсказания в формате `sample_submission.csv`
+- `feature_importances_<timestamp>_<input_file>.json` - top-5 feature importances, где key - название фичи, value - значение важности
+- `score_distribution_<timestamp>_<input_file>.png` - график плотности распределения предсказанных fraud-score
 
 ## Быстрый старт
 
@@ -63,21 +71,43 @@ DISCLAIMER
 - Docker 20.10+
 - 2 ГБ свободного места
 - Порты: только файловая система
+- Файл `train.csv` из соревнования Teta ML 1 2025
 
 ### Запуск сервиса
 
-1. Скачайте файл `train.csv` из соревнования https://www.kaggle.com/competitions/teta-ml-1-2025 и разместите в директории `./train_data`
-2. Соберите образ
+1. Скачайте файл `train.csv` из соревнования https://www.kaggle.com/competitions/teta-ml-1-2025 и разместите его в директории `./train_data`.
+2. Создайте директории для входных и выходных файлов:
+```bash
+mkdir -p input output
+```
+3. Соберите образ:
 ```bash
 docker build -t fraud_detector .
 ```
-3. Запустите контейнер с монтированием томов
+4. Запустите контейнер с монтированием томов:
 ```bash
 docker run -it --rm -v ./input:/app/input \
                     -v ./output:/app/output \
                     fraud_detector
 ```
-4. После запуска сервиса (появления в логах сообщения: `__main__ - INFO - File observer started`) можно приступать к скорингу данных:
+5. После запуска сервиса и появления в логах сообщения `File observer started` можно приступать к скорингу данных:
  - Разместите файл формата test.csv из соревнования https://www.kaggle.com/competitions/teta-ml-1-2025 в директории `./input`
- - Подождите выполнения препроцессинга и скоринга датасета (в логах будет указано название сформированного файла)
- - Полученный результат моделирования будет выгружен сервисом в директорию `./output`
+ - Подождите выполнения препроцессинга и скоринга датасета
+ - Полученные файлы будут выгружены сервисом в директорию `./output`
+
+Пример ожидаемых файлов после обработки `test.csv`:
+```text
+output/
+├── sample_submission_20260523_111701_test.csv
+├── feature_importances_20260523_111701_test.json
+└── score_distribution_20260523_111701_test.png
+```
+
+### Остановка сервиса
+
+Если контейнер запущен в интерактивном режиме, остановите его сочетанием клавиш `Ctrl+C`.
+
+Если контейнер запущен в фоне через `-d`, остановите его командой:
+```bash
+docker stop <container_name>
+```

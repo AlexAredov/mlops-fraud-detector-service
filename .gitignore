@@ -2,3 +2,5 @@
 *.DS_Store
 *.csv
 .github/
+__pycache__/
+*.pyc

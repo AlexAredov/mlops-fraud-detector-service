@@ -1,6 +1,5 @@
 import os
 import sys
-import pandas as pd
 import time
 import logging
 from watchdog.observers import Observer
@@ -8,6 +7,12 @@ from watchdog.events import FileSystemEventHandler
 from datetime import datetime
 
 sys.path.append(os.path.abspath('./src'))
+from io_utils import (
+    load_input_file,
+    save_feature_importances,
+    save_score_distribution,
+    save_submission,
+)
 from preprocessing import load_train_data, run_preproc
 from scorer import make_pred
 
@@ -33,19 +38,39 @@ class ProcessingService:
     def process_single_file(self, file_path):
         try:
             logger.info('Processing file: %s', file_path)
-            input_df = pd.read_csv(file_path).drop(columns=['name_1', 'name_2', 'street', 'post_code'])
+            input_df = load_input_file(file_path)
 
             logger.info('Starting preprocessing')
             processed_df = run_preproc(self.train, input_df)
             
             logger.info('Making prediction')
-            submission = make_pred(processed_df, file_path)
+            submission, scores, feature_importances = make_pred(processed_df, file_path)
             
-            logger.info('Prepraring submission file')
+            logger.info('Preparing output files')
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_filename = f"predictions_{timestamp}_{os.path.basename(file_path)}"
-            submission.to_csv(os.path.join(self.output_dir, output_filename), index=False)
-            logger.info('Predictions saved to: %s', output_filename)
+            input_filename = os.path.basename(file_path)
+
+            submission_filename = save_submission(
+                submission,
+                self.output_dir,
+                timestamp,
+                input_filename
+            )
+            importances_filename = save_feature_importances(
+                feature_importances,
+                self.output_dir,
+                timestamp,
+                input_filename
+            )
+            plot_filename = save_score_distribution(
+                scores,
+                self.output_dir,
+                timestamp,
+                input_filename
+            )
+            logger.info('Submission saved to: %s', submission_filename)
+            logger.info('Feature importances saved to: %s', importances_filename)
+            logger.info('Score distribution plot saved to: %s', plot_filename)
 
         except Exception as e:
             logger.error('Error processing file %s: %s', file_path, e, exc_info=True)
